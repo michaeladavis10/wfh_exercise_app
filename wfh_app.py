@@ -32,8 +32,8 @@ All values need to be unique
 Naming convention is no spaces, uses '-' between words
 '''
 exercises = dict()
-exercises['push'] = ['pushups','old-spice-push-ups','triangle-push-ups']
-exercises['pull'] = ['dips','pullups']
+exercises['push'] = ['pushup','old-spice-push-up','triangle-push-up','decline-push-up']
+exercises['pull'] = ['dip','pullup']
 exercises['squat'] = ['squat','lunge','pistol']
 exercises['core'] = ['v-up','russian-twist']
 
@@ -48,83 +48,93 @@ Edge case: if a user does tons of exercises, they'll eventually run out of new o
 TODO: This gets moved over to a database type solution
 This relies on the uniqueness of names
 '''
-user_active_today = False
-if os.path.exists(completed_activities_file):
-    completed_df = pd.read_csv(completed_activities_file, header=0, index_col=False, sep='|', parse_dates=[1], infer_datetime_format=True)
-    user_today_df = completed_df[(completed_df.email == user_email) & (completed_df.ts.dt.date == today_date)]
-    if user_today_df.shape[0] >= 1:
-        user_active_today = True
 
-# Find the 'groups' of those exercises and find the list of possible groups to choose from for the next iteration
-if user_active_today:
-    # TODO: this needs cleaning up
-    a = pd.DataFrame(user_today_df.groupby(['exercise_group']).size())
-    a.reset_index(drop=False)
-    a.rename(columns = {0:'counts'}, inplace=True)
-    have_not_done_yet = set(exercises.keys()) - set(a.index)
-    print(a)
-    print()
-    if len(have_not_done_yet) >= 1:
-        groups_to_choose_from = list(have_not_done_yet)
+
+def load_previous_activity(data_source):
+    if os.path.exists(completed_activities_file):
+        df = pd.read_csv(data_source, header=0, index_col=False, sep='|', parse_dates=[1], infer_datetime_format=True)
     else:
-        min_groups = list(a[a == a.min()].dropna().index)
-        groups_to_choose_from = min_groups
-else:
-    groups_to_choose_from = list(exercises.keys())
+        df = None
+    return df
 
-# Choose the next group
+def get_user_activity_on_date(activity_df, user_email, user_date):
+    # TODO: convert to class? so this doesn't have to do None check
+    if activity_df is not None:
+        df = activity_df[(activity_df.email == user_email) & (activity_df.ts.dt.date == user_date)]
+        if df.shape[0] >= 1:
+            return df
+        else:
+            return None
+    else:
+        return None
+
+def show_previous_activity(user_df, groupby_level, where_cond = None):
+    # TODO: convert to class? so this doesn't have to do None check
+    if user_df is not None:
+        if where_cond is None:
+            a = pd.DataFrame(user_df.groupby([groupby_level]).size())
+        else:
+            a = pd.DataFrame(user_df[eval('user_df' + where_cond)].groupby([groupby_level]).size())
+        a.reset_index(drop=False)
+        a.rename(columns = {0:'count'}, inplace=True)
+        print(a)
+        print()
+        return a
+    else:
+        return None
+
+def determine_possible_choices(all_available_choices, previous_activity = None):
+    if previous_activity is not None:
+        have_not_done_yet = set(all_available_choices) - set(previous_activity.index)
+        if len(have_not_done_yet) >= 1:
+            possible_choices = list(have_not_done_yet)
+        else:
+            possible_choices = list(previous_activity[previous_activity == previous_activity.min()].dropna().index)
+    else:
+        possible_choices = list(all_available_choices)
+    return possible_choices
+
+def write_to_history(user_email, exercise_group, exercise, reps):
+    '''
+    Need to record the user, time completed, exercise, and reps
+    When reading back in, truncate time to date & use unique lookup in reps
+    '''
+    # Record to write
+    row = [[user_email, pd.Timestamp.now(), exercise_group, exercise, reps]]
+    df = pd.DataFrame(row, columns = ['email','ts','exercise_group','exercise','reps'])
+
+    # Check if file exists
+    # If it does not - create it with headers
+    # If it does - append
+    try:
+        if os.path.exists(completed_activities_file):
+            df.to_csv(completed_activities_file, mode='a', header=False, index=False, sep='|')
+        else:
+            df.to_csv(completed_activities_file, mode='w', header=True, index=False, sep='|')
+    except Exception as e:
+        print(e)
+    return None
+
+
+# Load history
+previous_activity = load_previous_activity(completed_activities_file)
+user_activity_today = get_user_activity_on_date(previous_activity, user_email, today_date)
+
+# Choose the group
+exercise_group_df = show_previous_activity(user_activity_today, 'exercise_group')
+groups_to_choose_from = determine_possible_choices(exercises.keys(), exercise_group_df)
 chosen_exercise_group = choice(groups_to_choose_from)
-print(chosen_exercise_group)
-print()
-
-# Pick an exercise from that group - but make sure it hasn't already been done
-if user_active_today:
-    # TODO: this needs cleaning up
-    a = pd.DataFrame(user_today_df[user_today_df.exercise_group == chosen_exercise_group].groupby(['exercise']).size())
-    a.reset_index(drop=False)
-    a.rename(columns = {0:'counts'}, inplace=True)
-    have_not_done_yet = set(exercises[chosen_exercise_group]) - set(a.index)
-    print(a)
-    print()
-    if len(have_not_done_yet) >= 1:
-        exercises_to_choose_from = list(have_not_done_yet)
-    else:
-        min_groups = list(a[a == a.min()].dropna().index)
-        exercises_to_choose_from = min_groups
-else:
-    exercises_to_choose_from = exercises[chosen_exercise_group]
+print(f'Exercise group for this round: {chosen_exercise_group}\n')
 
 # Choose the exercise
+exercise_df = show_previous_activity(user_activity_today, 'exercise', "['exercise_group'] == chosen_exercise_group")
+exercises_to_choose_from = determine_possible_choices(exercises[chosen_exercise_group], exercise_df)
 chosen_exercise = choice(exercises_to_choose_from)
-print(chosen_exercise)
-print()
-
+print(f'Exercise for this round: {chosen_exercise}\n')
 
 # Print back to user
-print_string = f'\nToday is day {days_since_start} of quarantine.  Do {days_since_start} reps of {chosen_exercise}.\n'
-print(print_string)
+print(f'\nToday is day {days_since_start} of quarantine.  Do {days_since_start} reps of {chosen_exercise}.\n')
 
 # Keep track of what you've done
-'''
-Need to record the user, time done, exercise, and reps
-When reading back in, truncate time to date & use unique lookup in reps
-'''
-
-# Record to write
-row = [[user_email, pd.Timestamp.now(), chosen_exercise_group, chosen_exercise, days_since_start]]
-df = pd.DataFrame(row, columns = ['email','ts','exercise_group','exercise','reps'])
-
-# Check if file exists
-# If it does not - create it with headers
-# If it does - append
-if os.path.exists(completed_activities_file):
-    df.to_csv(completed_activities_file, mode='a', header=False, index=False, sep='|')
-else:
-    df.to_csv(completed_activities_file, mode='w', header=True, index=False, sep='|')
-
-# Now read them back in before assigning the next exercise
-completed_df = pd.read_csv(completed_activities_file, header=0, index_col=False, sep='|', parse_dates=[1], infer_datetime_format=True)
-user_today_df = completed_df[(completed_df.email == user_email) & (completed_df.ts.dt.date == today_date)]
-user_today_exercises = list(completed_df.exercise)
-
-print(f'You have already completed {user_today_exercises} today. Good work!')
+write_to_history(user_email, chosen_exercise_group, chosen_exercise, days_since_start)
+print('Good work!\n')
