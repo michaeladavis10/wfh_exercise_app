@@ -14,6 +14,8 @@ from random import choice
 import os
 import pandas as pd
 
+from wfh_exercises import exercises
+
 # Denote user (will later get from auth)
 user_email = 'test@gmail.com'
 
@@ -25,17 +27,6 @@ completed_activities_file = os.path.join(dir_path, 'completed_activities.csv')
 quarantine_start_date = pd.Timestamp(2020,3,15)
 today_date = pd.Timestamp.today()
 days_since_start = (today_date - quarantine_start_date).days
-
-# Exerises
-'''
-All values need to be unique
-Naming convention is no spaces, uses '-' between words
-'''
-exercises = dict()
-exercises['push'] = ['pushup','old-spice-push-up','triangle-push-up','decline-push-up']
-exercises['pull'] = ['dip','pullup']
-exercises['squat'] = ['squat','lunge','pistol']
-exercises['core'] = ['v-up','russian-twist']
 
 # Check to see if user has already done exercises that day, and what to choose next
 '''
