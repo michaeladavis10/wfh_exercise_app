@@ -133,8 +133,15 @@ chosen_exercise = choice(exercises_to_choose_from)
 print(f'Exercise for this round: {chosen_exercise}\n')
 
 # Print back to user
-print(f'\nToday is day {days_since_start} of quarantine.  Do {days_since_start} reps of {chosen_exercise}.\n')
+print(f'\nToday is day {days_since_start} of quarantine.  Do {days_since_start} reps of {chosen_exercise}.  Go! \n\n')
+
+# Have user mark completion
+exercise_start_time = pd.Timestamp.now()
+print('...Hit Enter when done...')
+x = input()
+exercise_end_time = pd.Timestamp.now()
+time_to_complete = (exercise_end_time - exercise_start_time).seconds
 
 # Keep track of what you've done
 write_to_history(user_email, chosen_exercise_group, chosen_exercise, days_since_start)
-print('Good work!\n')
+print(f'Good work! It took you {time_to_complete} seconds to complete this round!\n')
