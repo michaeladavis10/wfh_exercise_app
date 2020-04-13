@@ -23,6 +23,7 @@ user_email = 'test@gmail.com'
 dir_path = os.path.dirname(os.path.realpath(__file__))
 completed_activities_file = os.path.join(dir_path, 'completed_activities.csv')
 
+
 # Days since start of quarantine
 quarantine_start_date = pd.Timestamp(2020,3,15)
 today_date = pd.Timestamp.today()
